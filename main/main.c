@@ -1,11 +1,8 @@
 /*
   Fichero: ./main/main.c
-  Fecha: 12/08/2025 - 02:30 pm
-  Último cambio: Restaurado el modo de conexión STA para el servidor de configuración.
-  Descripción: Se revierte la lógica del modo de configuración para que el dispositivo
-               se conecte como cliente (STA) a la red WiFi guardada, en lugar de
-               crear un Punto de Acceso (AP). Esto alinea el comportamiento con el
-               requisito original de servir la web desde la red local.
+  Fecha: 12/08/2025 - 04:50 pm
+  Último cambio: Corregido el orden de inicialización en el modo de configuración para montar la SD antes de iniciar el servidor web.
+  Descripción: Orquestador principal de la aplicación. Se ha corregido la secuencia de arranque del modo de configuración para asegurar que el BSP (y por tanto la tarjeta SD) se inicialice antes de que el servidor web intente acceder a los ficheros.
 */
 #include <stdio.h>
 #include <string.h>
@@ -63,10 +60,15 @@ void app_main(void)
 
 static void run_config_server_mode(void) {
     ESP_LOGI(TAG, "Arrancando en modo Servidor Web de Configuración (STA)...");
-    bsp_wifi_init_stack();
+
+    // 1. Inicializar el hardware necesario PRIMERO (SPI, SD, Display)
+    bsp_init_service_mode();
     
+    // 2. Ahora que el hardware está listo, mostrar la pantalla de servicio
     service_screen_show("/sdcard/config/FTP.bin");
     
+    // 3. Inicializar la pila de red y conectar
+    bsp_wifi_init_stack();
     bsp_wifi_init_sta_from_nvs();
     bool ip_ok = bsp_wifi_wait_for_ip(15000);
 
@@ -74,6 +76,7 @@ static void run_config_server_mode(void) {
         char ip_addr_buffer[16] = "0.0.0.0";
         bsp_wifi_get_ip(ip_addr_buffer);
         ESP_LOGI(TAG, "Dispositivo conectado. IP: %s. Iniciando servidor web.", ip_addr_buffer);
+        // 4. Iniciar el servidor web (ahora la SD está garantizada que está montada)
         web_server_start(); // Bloqueante
     } else {
         ESP_LOGE(TAG, "No se pudo obtener IP. Reiniciando en 10 segundos...");
@@ -84,9 +87,10 @@ static void run_config_server_mode(void) {
 
 static void run_wifi_portal_mode(void) {
     ESP_LOGI(TAG, "No hay credenciales. Arrancando en modo Portal WiFi...");
-    bsp_wifi_init_stack();
+    bsp_init_service_mode(); // Inicializamos hardware para mostrar la pantalla
     service_screen_show("/sdcard/config/WIFI.bin");
-    wifi_portal_start();
+    bsp_wifi_init_stack();
+    wifi_portal_start(); // Esta función ya gestiona el AP
 }
 
 static void run_main_application_mode(void) {
@@ -107,8 +111,8 @@ static void run_main_application_mode(void) {
     const esp_timer_create_args_t evolution_timer_args = {
         .callback = &evolution_timer_callback, .name = "evolution-timer"
     };
+    ESP_ERROR_CHECK(esp_timer_create(&evolution_timer_args, &evolution_timer_handle));
     // Desactivado para permitir evolución manual
-    // ESP_ERROR_CHECK(esp_timer_create(&evolution_timer_args, &evolution_timer_handle));
     // ESP_ERROR_CHECK(esp_timer_start_periodic(evolution_timer_handle, 5 * 1000000));
     
     ESP_LOGI(TAG, "¡Firmware DIYMON en marcha!");

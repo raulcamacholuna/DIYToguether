@@ -1,7 +1,7 @@
 /*
   Fichero: ./components/web_server/web_server.c
-  Fecha: 12/08/2025 - 02:30 pm
-  Último cambio: Corregida la ruta base para servir archivos desde la raíz de la SD.
+  Fecha: 12/08/2025 - 04:55 pm
+  Último cambio: Corregida la ruta base para servir archivos desde la raíz de la SD, eliminando el subdirectorio '/web'.
   Descripción: Se ha eliminado el subdirectorio "/web" de la ruta de búsqueda
                de archivos. El servidor ahora buscará los ficheros (index.html, etc.)
                directamente en la raíz del punto de montaje de la tarjeta SD,
@@ -98,7 +98,7 @@ static esp_err_t file_get_handler(httpd_req_t *req) {
         uri = "/index.html";
     }
 
-    // [CAMBIO CLAVE] Se elimina "/web" de la ruta base.
+    // Se construye la ruta base directamente desde el punto de montaje de la SD.
     int len = snprintf(filepath, sizeof(filepath), "%s", WEB_MOUNT_POINT);
     if (len < 0 || len >= sizeof(filepath)) {
         ESP_LOGE(TAG, "Error al construir la ruta base del archivo.");

@@ -1,9 +1,8 @@
 /*
   Fichero: ./components/diymon_bsp/WS1.9TS/bsp.c
-  Fecha: 12/08/2025 - 07:15
-  Último cambio: Limpieza y refactorización final de las funciones de inicialización.
-  Descripción: Orquestador del BSP. Se definen claramente las funciones para cada
-               modo de operación, asegurando que solo se inicializa lo necesario.
+  Fecha: 12/08/2025 - 05:25 pm
+  Último cambio: Restaurado el orden de inicialización original para corregir fallo de montaje de SD.
+  Descripción: Orquestador del BSP. Se revierte el orden de inicialización para que el display se configure antes que la tarjeta SD, resolviendo un conflicto en el bus SPI compartido que impedía el montaje de la SD.
 */
 #include "bsp_api.h"
 #include "esp_err.h"
